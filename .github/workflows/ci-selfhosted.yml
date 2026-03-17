@@ -30,10 +30,15 @@ jobs:
 
       - name: Download Data
         # Завантажуємо дані локально, щоб модулі мали з чим працювати
-        run: python src/data_load.py
+        # Копіювання датасету виконується вручну для self-hosted runner
+        # bash не може використовувати kaggle API через проблеми з кирилицею в Windows у print логах
+        run: |
+          echo 'Data already available'
 
       - name: Run visualization module
         shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
         run: |
           New-Item -ItemType Directory -Force -Path artifacts\visualization
           # Очищуємо попередні графіки, якщо є
