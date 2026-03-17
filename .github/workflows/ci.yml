@@ -1,0 +1,80 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Which module to run (or 'all')"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - data_load
+          - data_quality_analysis
+          - data_research
+          - visualization
+
+jobs:
+  run-modules:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+         module: [data_load, data_quality_analysis, data_research, visualization]
+    
+    # Умова запуску: запускаємо, якщо це не ручний запуск (workflow_dispatch) 
+    # АБО якщо в ручному запуску обрано 'all' АБО обрано конкретно цей модуль
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.module == 'all' || inputs.module == matrix.module }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Setup Kaggle Credentials
+        # Створюємо файл kaggle.json з секретів GitHub, щоб модуль data_load міг завантажити дані
+        run: |
+          echo "{\"username\":\"${{ secrets.KAGGLE_USERNAME }}\",\"key\":\"${{ secrets.KAGGLE_KEY }}\"}" > kaggle.json
+
+      - name: Ensure data is downloaded
+        # Якщо ми зараз тестуємо НЕ data_load (який сам це зробить), 
+        # нам все одно треба попередньо завантажити дані для інших модулів
+        if: ${{ matrix.module != 'data_load' }}
+        run: python src/data_load.py
+
+      - name: Execute target module (${{ matrix.module }})
+        run: |
+          # Створюємо папку для логів цього конкретного модуля
+          mkdir -p artifacts/${{ matrix.module }}
+          
+          echo "Очищення попередніх графіків перед генерацією нових..."
+          rm -f reports/figures/*.png
+          
+          echo "Запуск src/${{ matrix.module }}.py..."
+          # Запускаємо модуль і записуємо весь вивід (stdout та stderr) у лог файл
+          python src/${{ matrix.module }}.py > artifacts/${{ matrix.module }}/run.log 2>&1
+          
+      - name: Upload Artifacts
+        if: always() # Зберігаємо артефакти навіть якщо крок вище впав з помилкою
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.module }}
+          path: |
+            artifacts/${{ matrix.module }}/run.log
+            reports/figures/*.png
+          if-no-files-found: ignore
