@@ -1,0 +1,482 @@
+Побудова CI-конвеєра із використанням GitHub Actions або Jenkins
+Умови завершення
+Лабораторна робота: Побудова CI-конвеєра із використанням GitHub Actions 
+Мета
+Налаштувати CI: автоматичний запуск модульних задач (тести/лінт/збірка/перевірки) при push/pull_request.
+
+Налаштувати CD (умовно): публікація артефактів (логів, звітів, графіків) та/або деплой результатів (наприклад, у GitHub Pages) після успішного CI.
+
+Навчитись запускати pipeline:
+
+на GitHub-hosted runners (хмара GitHub),
+
+на self-hosted runners (локальний ПК/сервер/WSL).
+
+Теоретичні відомості (GitHub Actions)
+GitHub Actions — це система автоматизації, де:
+
+Workflow (файл .github/workflows/*.yml) описує, коли і що запускається.
+
+Events: push, pull_request, workflow_dispatch (ручний запуск), schedule (за розкладом) запускають  CI\CD .
+
+Jobs — незалежні частини workflow (можуть виконуватись паралельно).
+
+Steps — кроки всередині job (checkout, встановлення залежностей, запуск команд).
+
+Runner — середовище виконання:
+
+GitHub-hosted: runs-on: ubuntu-latest (або Windows/macOS).
+
+Self-hosted: runs-on: self-hosted + мітки (labels) для вибору вашого агента.
+
+Хороша практика для модульного проєкту:
+
+або окремі jobs для кожного модуля,
+
+або matrix strategy (один job, який перебирає список модулів),
+
+запускати модуль тільки коли змінювались файли цього модуля (path filters або “changed files” логіка),
+
+зберігати звіти/графіки як artifacts.
+
+Правила створення Workflow-файлів у GitHub Actions
+1) Де лежать файли і як називаються
+Workflow — це YAML-файл у репозиторії за шляхом:
+
+.github/workflows/<імʼя>.yml або .yaml
+
+Назва файла довільна, але краще змістовна: ci.yml, tests.yml, release.yml.
+
+2) YAML-основа і відступи
+YAML чутливий до відступів (звично 2 пробіли).
+
+Не міксуйте таби.
+
+Рядки з : — це ключі, списки — через -.
+
+Рекомендується:
+
+завжди брати стрічки в лапки, якщо є спецсимволи,
+
+уникати “складних” рядків без лапок (особливо у if:).
+
+3) Обов’язкові “верхні” секції workflow
+Типовий каркас:
+
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Hello"
+name: — відображається в UI Actions.
+
+on: — тригери (коли запускати).
+
+jobs: — набір job-ів.
+
+4) on: — правила тригерів (events)
+Найуживаніші:
+
+push
+Запуск при пуші в гілку:
+
+on:
+  push:
+    branches: ["main"]
+pull_request
+Запуск при PR у main:
+
+on:
+  pull_request:
+    branches: ["main"]
+workflow_dispatch
+Ручний запуск кнопкою “Run workflow” + параметри:
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Module name"
+        required: true
+        default: "all"
+schedule
+Запуск за розкладом (cron, UTC):
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"   # щопонеділка 03:00 UTC
+5) jobs: — правила job-ів
+Job = окрема “машина” (runner)
+Кожен job виконується на окремому runner і має свій файловий простір.
+
+Мінімальні поля job:
+
+runs-on: — де виконувати (GitHub-hosted чи self-hosted)
+
+steps: — кроки
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python -V
+Залежності між job-ами: needs
+Якщо deploy має запускатись лише після test:
+
+jobs:
+  test:
+    ...
+  deploy:
+    needs: test
+    ...
+6)
+steps:
+— правила кроків
+Крок буває:
+
+Action (uses:) — готовий модуль з Marketplace
+
+Shell команда (run:)
+
+Типові дії:
+
+actions/checkout@v4 — витягнути код
+
+actions/setup-python@v5 — встановити Python
+
+actions/upload-artifact@v4 — завантажити артефакти
+
+Приклад:
+
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
+
+  - name: Run script
+    run: python -m data_load
+Про shell
+На ubuntu-latest команди виконуються через bash (типово).
+
+При потребі можна і явно вказати:
+
+- run: echo hi
+  shell: bash
+7) Контекст, змінні, секрети
+Контексти (вбудовані змінні)
+${{ github.ref }} — гілка/тег
+
+${{ github.event_name }} — тип події
+
+${{ github.sha }} — коміт
+
+${{ matrix.<name> }} — значення матриці
+
+env (змінні середовища)
+На рівні workflow:
+
+env:
+  PYTHONUNBUFFERED: "1"
+На рівні job чи step також можна.
+
+secrets
+Зберігаються в Settings → Secrets and variables → Actions:
+
+env:
+  TOKEN: ${{ secrets.MY_TOKEN }}
+9) Артефакти
+Щоб зберегти результати виконання:
+
+- uses: actions/upload-artifact@v4
+  with:
+    name: reports
+    path: artifacts/
+Матрична стратегія (Matrix Strategy) 
+1) Навіщо потрібна матриця
+Matrix дозволяє автоматично створювати багато однотипних запусків одного job-а з різними параметрами:
+
+різні модулі (data_load, visualization, …)
+
+різні версії Python (3.10, 3.11)
+
+різні ОС (ubuntu, windows, macos)
+
+Це краще, ніж копіювати 4 однакові jobs руками.
+
+2) Базовий приклад: матриця по модулях
+strategy:
+  matrix:
+    module: [data_load, data_quality_analysis, data_research, visualization]
+І використання:
+
+run: python -m ${{ matrix.module }}
+3) Стратегія виконання fail-fast
+За замовчуванням, якщо один “екземпляр” матриці падає, GitHub може припинити інші.
+
+Зазвичай у навчальних CI краще так:
+
+strategy:
+  fail-fast: false
+Тоді ви побачите результат по кожному модулю.
+
+4) Матриця з кількома вимірами
+Наприклад модулі × версії Python:
+
+strategy:
+  fail-fast: false
+  matrix:
+    module: [data_load, data_quality_analysis, data_research, visualization]
+    python: ["3.10", "3.11"]
+Тоді буде 4×2 = 8 виконань.
+
+Використання:
+
+- uses: actions/setup-python@v5
+  with:
+    python-version: ${{ matrix.python }}
+5) include  — додати “особливі” комбінації
+Наприклад, visualization запускаємо ще й на macOS:
+
+strategy:
+  matrix:
+    os: [ubuntu-latest]
+    module: [data_load, data_quality_analysis, data_research, visualization]
+    include:
+      - os: macos-latest
+        module: visualization
+Це створить стандартні 4 запусків на Ubuntu + 1 додатковий на macOS.
+
+6) exclude  — виключити комбінації
+Наприклад, не тестуємо data_research на Python 3.10:
+
+strategy:
+  matrix:
+    module: [data_load, data_quality_analysis, data_research, visualization]
+    python: ["3.10", "3.11"]
+    exclude:
+      - module: data_research
+        python: "3.10"
+7) Умовний запуск через if  + matrix (типовий патерн)
+Якщо у workflow_dispatch користувач обрав конкретний модуль, пропускаємо інші:
+
+if: ${{ github.event_name != 'workflow_dispatch'
+     || github.event.inputs.module == 'all'
+     || github.event.inputs.module == matrix.module }}
+Це можна ставити на рівні job.
+
+8) max-parallel  — обмежити паралельність
+Якщо модулі важкі і ви не хочете запускати 4 паралельно:
+
+strategy:
+  max-parallel: 2
+  matrix:
+    module: [...]
+Завдання (що потрібно зробити)
+Частина A — CI для кожного модуля
+Створіть workflow ci.yml у .github/workflows/.
+
+Pipeline має запускатись:
+
+на pull_request у main,
+
+на push у main,
+
+і вручну (workflow_dispatch) з можливістю обрати модуль (параметром).
+
+Для кожного модуля повинні виконуватись мінімальні кроки (адаптуйте під ваш стек):
+
+встановлення залежностей,
+
+запуск “перевірки” модуля (наприклад, python -m <module>.main, або pytest, або ваш CLI),
+
+генерація результатів у artifacts/… (логи, csv, html, png — що логічно).
+
+Зробіть так, щоб pipeline:
+
+паралельно запускав модулі (через matrix або окремі jobs),
+
+не запускав зайве, якщо зміни не торкались цього модуля (bonus).
+
+Частина B — CD/публікація результатів
+Оберіть 1 варіант (або зробіть кілька як бонус):
+
+Варіант 1 (рекомендовано простий):
+
+Завантажуйте результати (звіти/графіки) як GitHub Actions artifacts після кожного запуску.
+
+Варіант 2:
+
+Публікуйте результат візуалізації (наприклад, HTML/PNG) у GitHub Pages (після успішного CI у main).
+
+Частина C — Self-hosted runner (локальний агент)
+Підключіть self-hosted runner на вашому ПК (або WSL2/Ubuntu).
+
+Додайте workflow ci-selfhosted.yml (або розширте існуючий), який запускає принаймні 1 модуль на self-hosted.
+
+У звіті обов’язково порівняйте:
+
+швидкість,
+
+доступ до локальних ресурсів (наприклад, великих датасетів на диску),
+
+ризики (сек’юрність, стабільність, “runner offline”).
+
+Приклад 1: CI з matrix для модулів (GitHub-hosted runner)
+Це базовий шаблон. Замініть команди python -m ... на ваш реальний спосіб запуску модулів.
+
+# .github/workflows/ci.yml
+name: CI (modules)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Which module to run (or 'all')"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - data_load
+          - data_quality_analysis
+          - data_research
+          - visualization
+
+jobs:
+  run-modules:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [data_load, data_quality_analysis, data_research, visualization]
+
+    # Якщо workflow_dispatch і обрано конкретний модуль — пропускаємо інші
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f pyproject.toml ]; then pip install -e .; fi
+
+      - name: Run module
+        run: |
+          mkdir -p artifacts/${{ matrix.module }}
+          echo "Running ${{ matrix.module }}"
+          # Приклад: запускаємо модуль як пакет
+          python -m ${{ matrix.module }} > artifacts/${{ matrix.module }}/run.log 2>&1
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.module }}
+          path: artifacts/${{ matrix.module }}
+Приклад 2 : запускати модуль лише якщо змінювались файли цього модуля
+Найпростіший підхід без “складної магії”: зробити окремі jobs з path filters (менше красиво, зате прозоро).
+
+# .github/workflows/ci-paths.yml
+name: CI (paths)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  data_load:
+    runs-on: ubuntu-latest
+    if: ${{ contains(join(github.event.pull_request.changed_files, ''), '') }}
+    steps:
+      - uses: actions/checkout@v4
+      # (В реальному житті changed files треба діставати через action або API)
+      - run: echo "Спрощений приклад. Реально застосуйте action для changed-files."
+Практичний варіант (робочий) зазвичай роблять через action на кшталт “changed-files” і if: для job/steps. Якщо захочеш — дам готовий робочий шаблон саме під твою структуру (але і без цього лабораторна повністю виконується).
+
+Приклад 3: Self-hosted runner (локальний агент)
+1) Підключення runner (коротко)
+У репозиторії: Settings → Actions → Runners → New self-hosted runner
+
+Далі GitHub дасть команди для вашої ОС (Linux/macOS/Windows).
+
+Типовий сценарій (Linux/WSL):
+
+завантажити runner,
+
+./config.sh ... (реєстрація),
+
+./run.sh (запуск агента).
+
+Рекомендовано додати labels, наприклад: self-hosted, linux, wsl, local.
+
+2) Workflow, який використовує self-hosted
+# .github/workflows/ci-selfhosted.yml
+name: CI (self-hosted)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-visualization-local:
+    runs-on: [self-hosted, linux]  # підлаштуйте під labels вашого агента
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use system Python (self-hosted)
+        run: |
+          python --version
+          pip --version
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f pyproject.toml ]; then pip install -e .; fi
+
+      - name: Run visualization module
+        run: |
+          mkdir -p artifacts/visualization
+          python -m visualization > artifacts/visualization/run.log 2>&1
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-visualization-selfhosted
+          path: artifacts/visualization
+Навіщо self-hosted?
+
+доступ до локальних даних (великі датасети, приватні ресурси),
+
+інколи швидше (або навпаки, залежить від ПК),
+
+контроль оточення (GPU, специфічні бібліотеки).
+
+Ризики
+
+секрети і безпека (runner має доступ до вашої машини),
+
+runner може бути offline,
+
+треба самим підтримувати залежності/оновлення.

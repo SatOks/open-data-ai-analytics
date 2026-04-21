@@ -40,3 +40,30 @@ Thumbs.db
 # Reports
 *.pdf
 reports/*.html
+
+# GitHub Actions self-hosted runner
+actions-runner/
+
+# Local CI artifacts
+artifacts/
+
+# Python test/tool cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Local secrets
+.kaggle/
+kaggle.json
+
+# Logs
+*.log

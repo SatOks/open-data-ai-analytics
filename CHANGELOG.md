@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.1] - 2026-04-21
+
+### Changed
+- Moved lab reports into a dedicated folder: `reports/labs/`
+- Renamed `reports/figures/LAB_REPORT_VISUAL.md` to `reports/labs/REPORT_LAB1_VISUAL.md`
+- Moved `REPORT_LAB2.md` to `reports/labs/REPORT_LAB2.md`
+
 ## [0.1.0] - 2026-02-24
 
 ### Added
@@ -19,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `reports/figures/` with generated plots at 300 DPI
 - `README.md` with project description and research hypotheses
 - `requirements.txt` with all Python dependencies
-- `LAB_REPORT_VISUAL.md` — full visual lab report
+- `reports/labs/REPORT_LAB1_VISUAL.md` — full visual lab report
 
 ### Git Workflow
 - Feature branch workflow with 4 branches: `feature/data_load`, `feature/data_quality_analysis`, `feature/data_research`, `feature/visualization`
@@ -32,4 +39,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hypothesis 2 confirmed: Immunization reduces child mortality (r = −0.62, p < 0.001)
 - Hypothesis 3 confirmed: Random Forest achieves R² = 0.92 on test set
 
+[0.1.1]: https://github.com/username/open-data-ai-analytics/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/username/open-data-ai-analytics/releases/tag/v0.1.0
