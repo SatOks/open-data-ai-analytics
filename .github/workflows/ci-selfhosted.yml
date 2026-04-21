@@ -28,8 +28,6 @@ jobs:
       matrix:
         module: [data_load, data_quality_analysis, data_research, visualization]
 
-    if: ${{ inputs.module == 'all' || inputs.module == matrix.module }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,6 +38,7 @@ jobs:
           python -m pip --version
 
       - name: Setup Kaggle Credentials
+        if: ${{ inputs.module == 'all' || inputs.module == matrix.module }}
         shell: pwsh
         run: |
           $kaggleJson = '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}'
@@ -49,13 +48,14 @@ jobs:
           $kaggleJson | Out-File -FilePath kaggle.json -Encoding ascii
 
       - name: Install dependencies
+        if: ${{ inputs.module == 'all' || inputs.module == matrix.module }}
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
           if (Test-Path requirements.txt) { pip install -r requirements.txt }
 
       - name: Ensure dataset is available
-        if: ${{ matrix.module != 'data_load' }}
+        if: ${{ (inputs.module == 'all' || inputs.module == matrix.module) && matrix.module != 'data_load' }}
         shell: pwsh
         run: |
           $dataFile = "data/raw/Life Expectancy Data.csv"
@@ -81,6 +81,7 @@ jobs:
           Write-Host "Dataset is ready: $dataFile"
 
       - name: Run module (${{ matrix.module }})
+        if: ${{ inputs.module == 'all' || inputs.module == matrix.module }}
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path "artifacts/${{ matrix.module }}" | Out-Null
@@ -91,7 +92,7 @@ jobs:
           python "src/${{ matrix.module }}.py" > "artifacts/${{ matrix.module }}/run.log" 2>&1
 
       - name: Upload artifacts
-        if: always()
+        if: ${{ (inputs.module == 'all' || inputs.module == matrix.module) && always() }}
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-${{ matrix.module }}-selfhosted
