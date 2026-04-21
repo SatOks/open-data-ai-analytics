@@ -6,6 +6,7 @@ This directory stores all laboratory reports in one place.
 
 - `REPORT_LAB1_VISUAL.md` - Detailed report for Lab 1 (data analysis and visualization)
 - `REPORT_LAB2.md` - CI/CD report for Lab 2 (GitHub Actions and self-hosted runner)
+- `REPORT_LAB3.md` - Docker containerization report for Lab 3 (services, compose, web)
 
 ## Related materials
 

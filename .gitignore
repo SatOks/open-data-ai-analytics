@@ -67,3 +67,12 @@ kaggle.json
 
 # Logs
 *.log
+
+# Docker runtime artifacts
+runtime/*
+!runtime/.gitkeep
+
+# Local lab instruction files
+Lab1.txt
+Lab2.txt
+Lab3.txt

@@ -1,0 +1,30 @@
+# Git and editor metadata
+.git
+.gitignore
+.github
+.vscode
+.idea
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Build artifacts and logs
+artifacts/
+build/
+dist/
+*.log
+
+# Local runtime outputs
+runtime/
+
+# CI runner binaries and cache
+actions-runner/
+
+# Notebook checkpoints
+.ipynb_checkpoints/

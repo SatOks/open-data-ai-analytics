@@ -1,0 +1,105 @@
+services:
+  data_load:
+    build:
+      context: .
+      dockerfile: services/data_load/Dockerfile
+    environment:
+      CSV_FILE: ${CSV_FILE:-/app/data/raw/Life Expectancy Data.csv}
+      SQLITE_PATH: ${SQLITE_PATH:-/app/runtime/db/life_expectancy.db}
+      DB_TABLE: ${DB_TABLE:-life_expectancy}
+      LOAD_SUMMARY_PATH: ${LOAD_SUMMARY_PATH:-/app/runtime/results/load_summary.json}
+    volumes:
+      - ./data:/app/data:ro
+      - ./runtime:/app/runtime
+    networks:
+      - analytics-network
+
+  data_quality_analysis:
+    build:
+      context: .
+      dockerfile: services/data_quality_analysis/Dockerfile
+    depends_on:
+      data_load:
+        condition: service_completed_successfully
+    environment:
+      SQLITE_PATH: ${SQLITE_PATH:-/app/runtime/db/life_expectancy.db}
+      DB_TABLE: ${DB_TABLE:-life_expectancy}
+      QUALITY_REPORT_PATH: ${QUALITY_REPORT_PATH:-/app/runtime/results/quality_report.json}
+    volumes:
+      - ./runtime:/app/runtime
+    networks:
+      - analytics-network
+
+  data_research:
+    build:
+      context: .
+      dockerfile: services/data_research/Dockerfile
+    depends_on:
+      data_load:
+        condition: service_completed_successfully
+    environment:
+      SQLITE_PATH: ${SQLITE_PATH:-/app/runtime/db/life_expectancy.db}
+      DB_TABLE: ${DB_TABLE:-life_expectancy}
+      TARGET_COLUMN: "${TARGET_COLUMN:-Life expectancy }"
+      RESEARCH_REPORT_PATH: ${RESEARCH_REPORT_PATH:-/app/runtime/results/research_report.json}
+    volumes:
+      - ./runtime:/app/runtime
+    networks:
+      - analytics-network
+
+  visualization:
+    build:
+      context: .
+      dockerfile: services/visualization/Dockerfile
+    depends_on:
+      data_quality_analysis:
+        condition: service_completed_successfully
+      data_research:
+        condition: service_completed_successfully
+    environment:
+      SQLITE_PATH: ${SQLITE_PATH:-/app/runtime/db/life_expectancy.db}
+      DB_TABLE: ${DB_TABLE:-life_expectancy}
+      QUALITY_REPORT_PATH: ${QUALITY_REPORT_PATH:-/app/runtime/results/quality_report.json}
+      RESEARCH_REPORT_PATH: ${RESEARCH_REPORT_PATH:-/app/runtime/results/research_report.json}
+      FIGURES_DIR: ${FIGURES_DIR:-/app/runtime/results/figures}
+      PLOT_SHOW: "0"
+    volumes:
+      - ./runtime:/app/runtime
+    networks:
+      - analytics-network
+
+  web:
+    build:
+      context: .
+      dockerfile: services/web/Dockerfile
+    depends_on:
+      visualization:
+        condition: service_completed_successfully
+    environment:
+      SQLITE_PATH: ${SQLITE_PATH:-/app/runtime/db/life_expectancy.db}
+      DB_TABLE: ${DB_TABLE:-life_expectancy}
+      LOAD_SUMMARY_PATH: ${LOAD_SUMMARY_PATH:-/app/runtime/results/load_summary.json}
+      QUALITY_REPORT_PATH: ${QUALITY_REPORT_PATH:-/app/runtime/results/quality_report.json}
+      RESEARCH_REPORT_PATH: ${RESEARCH_REPORT_PATH:-/app/runtime/results/research_report.json}
+      FIGURES_DIR: ${FIGURES_DIR:-/app/runtime/results/figures}
+      WEB_PORT: "${WEB_PORT:-8080}"
+    ports:
+      - "${WEB_PORT:-8080}:${WEB_PORT:-8080}"
+    volumes:
+      - ./runtime:/app/runtime
+    networks:
+      - analytics-network
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/health' % os.environ.get('WEB_PORT', '8080')).read()
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+networks:
+  analytics-network:
+    driver: bridge

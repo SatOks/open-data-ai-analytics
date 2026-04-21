@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open Data AI Analytics - Lab 3</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <header class="hero">
+      <h1>Open Data AI Analytics</h1>
+      <p>Lab 3: Dockerized data pipeline with SQLite and Flask</p>
+    </header>
+
+    <main class="grid">
+      <section class="card">
+        <h2>Опис проєкту</h2>
+        <p>
+          Система контейнеризує модулі завантаження, перевірки якості, дослідження та
+          візуалізації даних. Дані з CSV імпортуються у SQLite, результати перевірок
+          і дослідження зберігаються у JSON, а графіки доступні через веб-інтерфейс.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Завантаження даних</h2>
+        {% if load_summary %}
+        <ul>
+          <li>Статус: {{ load_summary.status }}</li>
+          <li>Таблиця: {{ load_summary.table_name }}</li>
+          <li>Рядків завантажено: {{ load_summary.rows_loaded }}</li>
+          <li>Кількість колонок: {{ load_summary.columns_count }}</li>
+        </ul>
+        {% else %}
+        <p>Поки немає результатів завантаження.</p>
+        {% endif %}
+      </section>
+
+      <section class="card">
+        <h2>Результати перевірки якості</h2>
+        {% if quality_report %}
+        <ul>
+          <li>Рядків: {{ quality_report.basic_info.total_rows }}</li>
+          <li>Колонок: {{ quality_report.basic_info.total_columns }}</li>
+          <li>Дублікатів: {{ quality_report.duplicates.total_duplicates }}</li>
+          <li>Пропуски (колонки): {{ quality_report.missing_values | length }}</li>
+        </ul>
+        {% if quality_report.missing_values %}
+        <h3>Топ пропусків</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Missing</th>
+              <th>%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in quality_report.missing_values[:10] %}
+            <tr>
+              <td>{{ row.column }}</td>
+              <td>{{ row.missing_count }}</td>
+              <td>{{ row.missing_percentage }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+        {% else %}
+        <p>Звіт якості ще не сформовано.</p>
+        {% endif %}
+      </section>
+
+      <section class="card">
+        <h2>Результати дослідження</h2>
+        {% if research_report %}
+        <ul>
+          <li>Target: {{ research_report.target_column }}</li>
+          <li>Найкраща модель: {{ research_report.best_model }}</li>
+          <li>Train/Test: {{ research_report.train_rows }} / {{ research_report.test_rows }}</li>
+        </ul>
+        {% if research_report.comparison %}
+        <h3>Порівняння моделей</h3>
+        <table>
+          <thead>
+            <tr>
+              {% for key in research_report.comparison[0].keys() %}
+              <th>{{ key }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in research_report.comparison %}
+            <tr>
+              {% for value in row.values() %}
+              <td>{{ value }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+        {% else %}
+        <p>Звіт дослідження ще не сформовано.</p>
+        {% endif %}
+      </section>
+
+      <section class="card wide">
+        <h2>Попередній перегляд завантажених даних</h2>
+        {% if preview.rows %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                {% for column in preview.columns %}
+                <th>{{ column }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in preview.rows %}
+              <tr>
+                {% for column in preview.columns %}
+                <td>{{ row[column] }}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p>Попередній перегляд недоступний.</p>
+        {% endif %}
+      </section>
+
+      <section class="card wide">
+        <h2>Візуалізації</h2>
+        {% if figures %}
+        <div class="figures">
+          {% for figure in figures %}
+          <figure>
+            <img src="{{ url_for('get_figure', filename=figure) }}" alt="{{ figure }}" />
+            <figcaption>{{ figure }}</figcaption>
+          </figure>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p>Графіки ще не згенеровано.</p>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>

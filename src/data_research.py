@@ -47,13 +47,19 @@ def prepare_data_for_modeling(df: pd.DataFrame,
     if target in numeric_cols:
         numeric_cols.remove(target)
     
-    # Заповнюємо пропущені значення медіаною
+    # Заповнюємо пропущені значення медіаною без inplace,
+    # щоб стабільно працювало з новими версіями pandas.
     for col in numeric_cols:
         if data[col].isnull().sum() > 0:
-            data[col].fillna(data[col].median(), inplace=True)
+            data[col] = data[col].fillna(data[col].median())
     
-    X = data[numeric_cols]
+    X = data[numeric_cols].replace([np.inf, -np.inf], np.nan)
     y = data[target]
+
+    # Захист від залишкових пропусків у ознаках після заповнення.
+    valid_mask = ~X.isna().any(axis=1)
+    X = X.loc[valid_mask]
+    y = y.loc[valid_mask]
     
     # Розділення на train/test
     X_train, X_test, y_train, y_test = train_test_split(

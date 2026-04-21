@@ -1,0 +1,114 @@
+:root {
+  --bg: #f7f8fb;
+  --card: #ffffff;
+  --ink: #1b1f24;
+  --muted: #5c6672;
+  --accent: #0c7d8f;
+  --border: #dde3ea;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--ink);
+  background: linear-gradient(180deg, #eef4f8 0%, var(--bg) 100%);
+}
+
+.hero {
+  padding: 2rem 1.5rem;
+  background: #0e2431;
+  color: #f4f8fb;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.hero p {
+  margin-top: 0.5rem;
+  color: #c6d8e4;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  padding: 1rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem;
+  box-shadow: 0 8px 20px rgba(9, 27, 42, 0.06);
+}
+
+.card h2 {
+  margin-top: 0;
+  color: var(--accent);
+}
+
+.card h3 {
+  margin-bottom: 0.5rem;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.table-wrap {
+  overflow: auto;
+  max-height: 420px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  border: 1px solid var(--border);
+  padding: 0.45rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: #ecf3f8;
+}
+
+ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.figures {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+figure {
+  margin: 0;
+}
+
+figure img {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+figcaption {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}

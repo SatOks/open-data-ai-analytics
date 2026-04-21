@@ -59,3 +59,47 @@ open-data-ai-analytics/
 
 - Лабораторна 1: `reports/labs/REPORT_LAB1_VISUAL.md`
 - Лабораторна 2: `reports/labs/REPORT_LAB2.md`
+- Лабораторна 3: `reports/labs/REPORT_LAB3.md`
+
+## Lab 3: Docker Workspace
+
+У межах третьої лабораторної проєкт контейнеризовано на окремі сервіси:
+
+- `data_load` - читає CSV та завантажує дані у SQLite.
+- `data_quality_analysis` - виконує перевірки якості та формує `quality_report.json`.
+- `data_research` - виконує дослідження та формує `research_report.json`.
+- `visualization` - генерує графіки у PNG.
+- `web` - Flask-інтерфейс для перегляду результатів у браузері.
+
+### Контейнерна структура
+
+- `compose.yaml` - оркестрація всіх сервісів.
+- `services/*/Dockerfile` - окремий Dockerfile для кожного сервісу.
+- `runtime/db/life_expectancy.db` - SQLite база даних.
+- `runtime/results/*.json` - результати аналізу та дослідження.
+- `runtime/results/figures/*.png` - згенеровані візуалізації.
+
+### Швидкий запуск
+
+1. Переконайтесь, що CSV доступний за шляхом `data/raw/Life Expectancy Data.csv`.
+2. За потреби створіть `.env` на основі `.env.example`.
+3. Запустіть стек:
+
+```bash
+docker compose up --build
+```
+
+4. Відкрийте веб-інтерфейс: `http://localhost:8080`.
+
+### Порти та мережа
+
+- Веб-сервіс: `8080` (налаштовується через `WEB_PORT`).
+- Docker network: `analytics-network`.
+
+### Корисні команди
+
+```bash
+docker compose ps
+docker compose logs -f web
+docker compose down
+```

@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
 from pathlib import Path
 from typing import List, Optional, Tuple, Dict
 import warnings
@@ -28,12 +29,35 @@ def setup_plot_style(style: str = 'seaborn-v0_8'):
     sns.set_palette("husl")
 
 
+def _should_show_plots() -> bool:
+    """
+    Визначає, чи потрібно показувати графіки на екрані.
+    За замовчуванням графіки показуються.
+    """
+    return os.getenv("PLOT_SHOW", "1").strip().lower() not in {"0", "false", "no"}
+
+
+def _finalize_plot(fig) -> None:
+    """
+    Завершує обробку графіка: показує або закриває його в headless-режимі.
+    """
+    if _should_show_plots():
+        plt.show()
+    else:
+        plt.close(fig)
+
+
 def get_figures_path() -> Path:
     """
     Повертає шлях до папки для збереження графіків
     """
-    root = Path(__file__).parent.parent
-    figures_dir = root / "reports" / "figures"
+    env_path = os.getenv("FIGURES_DIR")
+    if env_path:
+        figures_dir = Path(env_path)
+    else:
+        root = Path(__file__).parent.parent
+        figures_dir = root / "reports" / "figures"
+
     figures_dir.mkdir(parents=True, exist_ok=True)
     return figures_dir
 
@@ -83,8 +107,8 @@ def plot_missing_values(df: pd.DataFrame,
         filepath = get_figures_path() / filename
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         print(f"✓ Збережено: {filepath}")
-    
-    plt.show()
+
+    _finalize_plot(fig)
 
 
 def plot_distribution(df: pd.DataFrame, 
@@ -142,8 +166,8 @@ def plot_distribution(df: pd.DataFrame,
         filepath = get_figures_path() / fname
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         print(f"✓ Збережено: {filepath}")
-    
-    plt.show()
+
+    _finalize_plot(fig)
 
 
 def plot_correlation_matrix(df: pd.DataFrame,
@@ -173,8 +197,8 @@ def plot_correlation_matrix(df: pd.DataFrame,
         filepath = get_figures_path() / filename
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         print(f"✓ Збережено: {filepath}")
-    
-    plt.show()
+
+    _finalize_plot(fig)
 
 
 def plot_scatter_with_regression(df: pd.DataFrame,
@@ -222,8 +246,8 @@ def plot_scatter_with_regression(df: pd.DataFrame,
         filepath = get_figures_path() / fname
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         print(f"✓ Збережено: {filepath}")
-    
-    plt.show()
+
+    _finalize_plot(fig)
 
 
 def plot_feature_importance(importance_dict: Dict[str, float],
@@ -272,8 +296,8 @@ def plot_feature_importance(importance_dict: Dict[str, float],
         filepath = get_figures_path() / filename
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         print(f"✓ Збережено: {filepath}")
-    
-    plt.show()
+
+    _finalize_plot(fig)
 
 
 def plot_model_predictions(y_true: np.ndarray,
@@ -324,8 +348,8 @@ def plot_model_predictions(y_true: np.ndarray,
         filepath = get_figures_path() / filename
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         print(f"✓ Збережено: {filepath}")
-    
-    plt.show()
+
+    _finalize_plot(fig)
 
 
 def plot_grouped_comparison(df: pd.DataFrame,
@@ -374,8 +398,8 @@ def plot_grouped_comparison(df: pd.DataFrame,
         filepath = get_figures_path() / fname
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         print(f"✓ Збережено: {filepath}")
-    
-    plt.show()
+
+    _finalize_plot(fig)
 
 
 if __name__ == "__main__":
