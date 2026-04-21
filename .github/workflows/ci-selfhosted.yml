@@ -2,10 +2,33 @@ name: CI (self-hosted)
 
 on:
   workflow_dispatch:
+    inputs:
+      module:
+        description: "Which module to run"
+        required: true
+        default: "visualization"
+        type: choice
+        options:
+          - all
+          - data_load
+          - data_quality_analysis
+          - data_research
+          - visualization
 
 jobs:
-  run-visualization-local:
+  run-modules-local:
     runs-on: [self-hosted]
+    env:
+      PYTHONIOENCODING: utf-8
+      KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+      KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [data_load, data_quality_analysis, data_research, visualization]
+
+    if: ${{ inputs.module == 'all' || inputs.module == matrix.module }}
 
     steps:
       - name: Checkout code
@@ -20,7 +43,10 @@ jobs:
         shell: pwsh
         run: |
           $kaggleJson = '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}'
-          $kaggleJson | Out-File -FilePath kaggle.json -Encoding utf8
+          $kaggleDir = Join-Path $env:USERPROFILE ".kaggle"
+          New-Item -ItemType Directory -Force -Path $kaggleDir | Out-Null
+          $kaggleJson | Out-File -FilePath (Join-Path $kaggleDir "kaggle.json") -Encoding ascii
+          $kaggleJson | Out-File -FilePath kaggle.json -Encoding ascii
 
       - name: Install dependencies
         shell: pwsh
@@ -28,30 +54,48 @@ jobs:
           python -m pip install --upgrade pip
           if (Test-Path requirements.txt) { pip install -r requirements.txt }
 
-      - name: Download Data
-        # Завантажуємо дані локально, щоб модулі мали з чим працювати
-        # Копіювання датасету виконується вручну для self-hosted runner
-        # bash не може використовувати kaggle API через проблеми з кирилицею в Windows у print логах
-        run: |
-          echo 'Data already available'
-
-      - name: Run visualization module
+      - name: Ensure dataset is available
+        if: ${{ matrix.module != 'data_load' }}
         shell: pwsh
-        env:
-          PYTHONIOENCODING: utf-8
         run: |
-          New-Item -ItemType Directory -Force -Path artifacts\visualization
+          $dataFile = "data/raw/Life Expectancy Data.csv"
+
+          if (!(Test-Path $dataFile)) {
+            Write-Host "Dataset not found. Attempting Kaggle download..."
+            python src/data_load.py
+          }
+
+          if (!(Test-Path $dataFile)) {
+            $downloaded = Get-ChildItem -Path "data/raw" -Filter "Life Expectancy Data.csv" -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($null -ne $downloaded) {
+              New-Item -ItemType Directory -Force -Path "data/raw" | Out-Null
+              Copy-Item -Path $downloaded.FullName -Destination $dataFile -Force
+              Write-Host "Copied dataset into canonical path: $dataFile"
+            }
+          }
+
+          if (!(Test-Path $dataFile)) {
+            throw "Dataset file is still missing: $dataFile"
+          }
+
+          Write-Host "Dataset is ready: $dataFile"
+
+      - name: Run module (${{ matrix.module }})
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "artifacts/${{ matrix.module }}" | Out-Null
           # Очищуємо попередні графіки, якщо є
-          if (Test-Path "reports\figures\*.png") { Remove-Item reports\figures\*.png -Force }
+          if (Test-Path "reports/figures/*.png") { Remove-Item reports/figures/*.png -Force }
           
-          Write-Host "Запуск visualization..."
-          python src/visualization.py > artifacts\visualization\run.log 2>&1
+          Write-Host "Запуск ${{ matrix.module }}..."
+          python "src/${{ matrix.module }}.py" > "artifacts/${{ matrix.module }}/run.log" 2>&1
 
       - name: Upload artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-visualization-selfhosted
+          name: artifacts-${{ matrix.module }}-selfhosted
           path: |
-            artifacts/visualization/run.log
+            artifacts/${{ matrix.module }}/run.log
             reports/figures/*.png
           if-no-files-found: ignore

@@ -2,7 +2,7 @@
 Модуль для завантаження даних про очікувану тривалість життя (WHO)
 """
 
-import os
+import shutil
 import pandas as pd
 from pathlib import Path
 
@@ -30,6 +30,27 @@ def get_data_path(filename: str = "Life Expectancy Data.csv") -> Path:
     return data_dir / filename
 
 
+def locate_dataset_file(filename: str = "Life Expectancy Data.csv") -> Path:
+    """
+    Шукає файл датасету у canonical-шляху та у вкладених папках data/raw.
+
+    Args:
+        filename: назва CSV файлу
+
+    Returns:
+        Path: знайдений шлях або canonical-шлях, якщо файл не знайдено
+    """
+    canonical_path = get_data_path(filename)
+    if canonical_path.exists():
+        return canonical_path
+
+    matches = sorted(canonical_path.parent.rglob(filename))
+    if matches:
+        return matches[0]
+
+    return canonical_path
+
+
 def load_data(filepath: str = None) -> pd.DataFrame:
     """
     Завантажує дані про очікувану тривалість життя
@@ -44,9 +65,22 @@ def load_data(filepath: str = None) -> pd.DataFrame:
         FileNotFoundError: якщо файл не знайдено
     """
     if filepath is None:
-        filepath = get_data_path()
-    
-    if not os.path.exists(filepath):
+        filepath = locate_dataset_file()
+    else:
+        filepath = Path(filepath)
+
+    canonical_path = get_data_path(filepath.name)
+
+    # Якщо файл знайдено у вкладеній папці, копіюємо його в canonical-шлях для стабільної роботи модулів.
+    if filepath.exists() and filepath != canonical_path and not canonical_path.exists():
+        try:
+            shutil.copy2(filepath, canonical_path)
+            print(f"✓ Файл датасету скопійовано до canonical-шляху: {canonical_path}")
+            filepath = canonical_path
+        except Exception as e:
+            print(f"Попередження: не вдалося скопіювати файл у canonical-шлях: {e}")
+
+    if not filepath.exists():
         raise FileNotFoundError(
             f"Файл даних не знайдено: {filepath}\n"
             f"Будь ласка, завантажте датасет з:\n"
@@ -98,13 +132,28 @@ def download_from_kaggle(dataset_name: str = "kumarajarshi/life-expectancy-who")
         print(f"Завантаження датасету {dataset_name} з Kaggle...")
         od.download(f"https://www.kaggle.com/datasets/{dataset_name}/data", 
                    data_dir=str(data_dir))
-        print("✓ Дані успішно завантажено!")
+
+        canonical_path = get_data_path()
+        found_path = locate_dataset_file(canonical_path.name)
+
+        if found_path.exists() and found_path != canonical_path:
+            shutil.copy2(found_path, canonical_path)
+            print(f"✓ Файл датасету приведено до canonical-шляху: {canonical_path}")
+
+        if canonical_path.exists():
+            print("✓ Дані успішно завантажено!")
+            return True
+
+        print("Помилка: після завантаження не вдалося знайти CSV у data/raw")
+        return False
         
     except ImportError:
         print("Помилка: встановіть opendatasets: pip install opendatasets")
+        return False
     except Exception as e:
         print(f"Помилка завантаження: {e}")
         print("Переконайтеся, що налаштовано Kaggle API credentials")
+        return False
 
 
 if __name__ == "__main__":
@@ -125,4 +174,14 @@ if __name__ == "__main__":
     except FileNotFoundError as e:
         print(f"\n{e}")
         print("\nСпроба завантажити з Kaggle...")
-        download_from_kaggle()
+        downloaded = download_from_kaggle()
+
+        if not downloaded:
+            raise SystemExit(1)
+
+        try:
+            df = load_data()
+            print(f"\n✓ Файл даних готовий: {get_data_path()}")
+            print(f"✓ Завантажено {len(df)} рядків після автоматичного завантаження")
+        except FileNotFoundError:
+            raise SystemExit(1)
