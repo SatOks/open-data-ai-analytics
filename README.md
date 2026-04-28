@@ -103,3 +103,140 @@ docker compose ps
 docker compose logs -f web
 docker compose down
 ```
+
+## Lab 4: Azure Deployment (Infrastructure as Code)
+
+У межах четвертої лабораторної проєкт розгортається у хмарі Microsoft Azure за допомогою Azure CLI та cloud-init.
+
+### Архітектура
+
+- **Azure Resource Group** - логічна група всіх ресурсів
+- **Azure Virtual Network** - віртуальна мережа з підмережею
+- **Azure Network Security Group** - правила фаєрволу (SSH, Web, Grafana, Prometheus)
+- **Azure Public IP** - статична публічна IP-адреса
+- **Azure Linux VM** - Ubuntu 22.04 LTS з Docker
+
+### Компоненти
+
+```
+infra/
+├── cloud-init.yaml       # Автоматична конфігурація VM
+├── azure-deploy.ps1      # PowerShell скрипт розгортання
+├── azure-destroy.ps1     # PowerShell скрипт видалення
+├── azure-deploy.sh       # Bash скрипт розгортання
+└── azure-destroy.sh      # Bash скрипт видалення
+```
+
+### Швидкий старт (Azure CLI)
+
+1. Увійдіть у Azure:
+   ```powershell
+   az login
+   ```
+
+2. Запустіть скрипт розгортання:
+   ```powershell
+   cd infra
+   .\azure-deploy.ps1 -ResourceGroup "odaa-rg" -Location "eastus"
+   ```
+
+3. Зачекайте 5-10 хвилин, поки cloud-init налаштує VM.
+
+4. Перевірте доступність:
+   ```powershell
+   curl http://<PUBLIC_IP>:8080/health
+   ```
+
+### Відкриті порти
+
+| Порт | Сервіс |
+|------|--------|
+| 22   | SSH |
+| 8080 | Web Application |
+| 3000 | Grafana |
+| 9090 | Prometheus |
+
+### Видалення ресурсів
+
+```powershell
+cd infra
+.\azure-destroy.ps1 -ResourceGroup "odaa-rg"
+```
+
+## Lab 5: Monitoring (Prometheus + Grafana)
+
+У межах п'ятої лабораторної додано стек моніторингу для спостереження за станом системи.
+
+### Компоненти моніторингу
+
+- **Prometheus** - збір та зберігання метрик
+- **Grafana** - візуалізація та дашборди
+- **Node Exporter** - метрики Linux VM (CPU, RAM, диск)
+- **cAdvisor** - метрики Docker контейнерів
+
+### Структура моніторингу
+
+```
+monitoring/
+├── prometheus/
+│   └── prometheus.yml              # Конфігурація Prometheus
+├── grafana/
+│   └── provisioning/
+│       ├── datasources/
+│       │   └── prometheus.yml      # Автоконфіг Prometheus datasource
+│       └── dashboards/
+│           ├── dashboards.yml      # Провізіонінг дашбордів
+│           └── odaa-dashboard.json # Готовий дашборд
+└── docker-compose.monitoring.yml   # Сервіси моніторингу
+```
+
+### Локальний запуск моніторингу
+
+1. Спочатку запустіть основний стек:
+   ```bash
+   docker compose up -d --build
+   ```
+
+2. Потім запустіть моніторинг:
+   ```bash
+   docker compose -f monitoring/docker-compose.monitoring.yml up -d
+   ```
+
+### Доступ до сервісів
+
+| Сервіс | URL | Логін |
+|--------|-----|-------|
+| Grafana | http://localhost:3000 | admin / admin |
+| Prometheus | http://localhost:9090 | - |
+
+### Метрики
+
+Prometheus збирає метрики з:
+- **prometheus** - самомоніторинг
+- **node-exporter** - CPU, RAM, диск, мережа VM
+- **cadvisor** - CPU, RAM контейнерів
+- **web-app** - метрики застосунку (`/metrics`)
+
+### Дашборд
+
+Готовий дашборд "Open Data AI Analytics Dashboard" включає:
+- 📈 CPU Usage (VM)
+- 💾 Memory Usage (VM)
+- 📊 Running Containers Count
+- 🟢 Web Service Status
+- ⏱️ VM Uptime
+- 💿 Disk Usage
+- 🐳 Container Memory/CPU (per service)
+
+### Корисні PromQL запити
+
+```promql
+# CPU Usage (%)
+100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+# Memory Usage (%)
+(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+
+# Running Containers
+count(container_memory_usage_bytes{name!=""})
+```

@@ -1,0 +1,47 @@
+# Prometheus Configuration for Open Data AI Analytics
+# Lab 5: Monitoring with Prometheus and Grafana
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  
+  external_labels:
+    project: 'open-data-ai-analytics'
+    environment: 'production'
+
+# Alerting configuration (optional, for future use)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: []
+
+# Rule files (optional, for future use)
+# rule_files:
+#   - "rules/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: /metrics
+
+  # Node Exporter - Linux VM metrics (CPU, memory, disk, network)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    metrics_path: /metrics
+
+  # cAdvisor - Container metrics
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    metrics_path: /metrics
+
+  # Web Application metrics endpoint
+  - job_name: 'web-app'
+    static_configs:
+      - targets: ['web:8080']
+    metrics_path: /metrics
+    scrape_interval: 30s

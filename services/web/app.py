@@ -46,9 +46,50 @@ def _list_figures() -> list[str]:
     return sorted([p.name for p in FIGURES_DIR.glob("*.png")])
 
 
+# Global counters for metrics
+_request_count = 0
+_last_request_time = None
+
+
 @app.route("/health")
 def health() -> tuple[dict, int]:
     return {"status": "ok"}, 200
+
+
+@app.route("/metrics")
+def metrics():
+    """Prometheus metrics endpoint."""
+    import time
+    import os
+    
+    # Basic application metrics in Prometheus format
+    lines = [
+        "# HELP web_app_up Application is up and running",
+        "# TYPE web_app_up gauge",
+        "web_app_up 1",
+        "",
+        "# HELP web_app_info Application information",
+        "# TYPE web_app_info gauge",
+        'web_app_info{version="1.0.0",service="web"} 1',
+        "",
+        "# HELP web_database_available Database file exists",
+        "# TYPE web_database_available gauge",
+        f"web_database_available {1 if SQLITE_PATH.exists() else 0}",
+        "",
+        "# HELP web_figures_count Number of generated figures",
+        "# TYPE web_figures_count gauge",
+        f"web_figures_count {len(_list_figures())}",
+        "",
+        "# HELP web_reports_available Reports availability",
+        "# TYPE web_reports_available gauge",
+        f'web_reports_available{{report="load_summary"}} {1 if LOAD_SUMMARY_PATH.exists() else 0}',
+        f'web_reports_available{{report="quality_report"}} {1 if QUALITY_REPORT_PATH.exists() else 0}',
+        f'web_reports_available{{report="research_report"}} {1 if RESEARCH_REPORT_PATH.exists() else 0}',
+        "",
+    ]
+    
+    from flask import Response
+    return Response("\n".join(lines), mimetype="text/plain")
 
 
 @app.route("/figures/<path:filename>")

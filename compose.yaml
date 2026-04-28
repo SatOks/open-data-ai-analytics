@@ -103,3 +103,4 @@ services:
 networks:
   analytics-network:
     driver: bridge
+    name: open-data-ai-analytics_analytics-network
