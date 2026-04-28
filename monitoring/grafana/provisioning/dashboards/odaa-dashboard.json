@@ -262,13 +262,13 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "count(container_memory_usage_bytes{name!=\"\"})",
-          "legendFormat": "Running Containers",
+          "expr": "count(up == 1)",
+          "legendFormat": "Active Services",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Running Containers",
+      "title": "Active Services",
       "type": "stat"
     },
     {
@@ -340,7 +340,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "up{job=\"web-health\"}",
+          "expr": "up{job=\"web-app\"}",
           "legendFormat": "Web Service",
           "range": true,
           "refId": "A"
