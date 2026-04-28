@@ -73,9 +73,10 @@ services:
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
-      - /cgroup:/cgroup:ro
+      - /sys/fs/cgroup:/cgroup:ro
     networks:
       - monitoring-network
     # Note: Not exposing port externally, only accessible via Prometheus
