@@ -33,6 +33,7 @@ spec:
             - -c
             - |
               pip install flask && \
+              mkdir -p /app && \
               cat > /app/app.py << 'EOF'
               from flask import Flask, jsonify, Response
               import time
