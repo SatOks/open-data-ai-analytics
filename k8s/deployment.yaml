@@ -70,7 +70,7 @@ spec:
                   <div class="container">
                       <h1>🚀 Open Data AI Analytics</h1>
                       <div class="status">
-                          <p class="version">Version: v1.1.0</p>
+                          <p class="version">Version: v1.0.0</p>
                           <p>Deployed via ArgoCD GitOps</p>
                           <p>Status: Running on Kubernetes (k3s)</p>
                       </div>
