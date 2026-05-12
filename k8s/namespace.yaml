@@ -1,0 +1,8 @@
+# Namespace for ODAA application
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: odaa
+  labels:
+    app.kubernetes.io/name: odaa
+    app.kubernetes.io/part-of: open-data-ai-analytics
