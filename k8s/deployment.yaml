@@ -17,105 +17,70 @@ spec:
       labels:
         app: odaa-web
         version: v1.0.0
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "8080"
-        prometheus.io/path: "/metrics"
     spec:
       containers:
         - name: web
-          image: python:3.11-slim
+          image: nginx:alpine
           ports:
-            - containerPort: 8080
+            - containerPort: 80
               name: http
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      initContainers:
+        - name: init-html
+          image: busybox
           command:
             - /bin/sh
             - -c
             - |
-              pip install flask && \
-              mkdir -p /app && \
-              cat > /app/app.py << 'EOF'
-              from flask import Flask, jsonify, Response
-              import time
-              import os
-
-              app = Flask(__name__)
-              start_time = time.time()
-              request_count = 0
-              version = os.environ.get('APP_VERSION', 'v1.0.0')
-
-              @app.route('/')
-              def index():
-                  global request_count
-                  request_count += 1
-                  return f'''
-                  <html>
-                  <head><title>ODAA - GitOps Demo</title>
+              cat > /html/index.html << 'HTMLEOF'
+              <!DOCTYPE html>
+              <html>
+              <head>
+                  <title>ODAA - GitOps Demo</title>
                   <style>
-                      body {{ font-family: Arial, sans-serif; margin: 40px; background: #1a1a2e; color: #eee; }}
-                      .container {{ max-width: 800px; margin: 0 auto; }}
-                      h1 {{ color: #0f4c75; }}
-                      .status {{ background: #16213e; padding: 20px; border-radius: 8px; margin: 20px 0; }}
-                      .version {{ color: #00ff88; font-size: 24px; }}
-                      .metric {{ color: #3282b8; }}
+                      body { font-family: Arial, sans-serif; margin: 40px; background: #1a1a2e; color: #eee; }
+                      .container { max-width: 800px; margin: 0 auto; }
+                      h1 { color: #3282b8; }
+                      .status { background: #16213e; padding: 20px; border-radius: 8px; margin: 20px 0; }
+                      .version { color: #00ff88; font-size: 24px; }
                   </style>
-                  </head>
-                  <body>
-                      <div class="container">
-                          <h1>🚀 Open Data AI Analytics</h1>
-                          <div class="status">
-                              <p class="version">Version: {version}</p>
-                              <p class="metric">Requests: {request_count}</p>
-                              <p class="metric">Uptime: {int(time.time() - start_time)}s</p>
-                              <p>Deployed via ArgoCD GitOps</p>
-                          </div>
-                          <p>Endpoints: <a href="/health">/health</a> | <a href="/metrics">/metrics</a></p>
+              </head>
+              <body>
+                  <div class="container">
+                      <h1>🚀 Open Data AI Analytics</h1>
+                      <div class="status">
+                          <p class="version">Version: v1.0.0</p>
+                          <p>Deployed via ArgoCD GitOps</p>
+                          <p>Status: Running on Kubernetes (k3s)</p>
                       </div>
-                  </body>
-                  </html>
-                  '''
-
-              @app.route('/health')
-              def health():
-                  return jsonify({"status": "ok", "version": version})
-
-              @app.route('/metrics')
-              def metrics():
-                  uptime = time.time() - start_time
-                  return Response(f'''# HELP odaa_app_up Application status
-              # TYPE odaa_app_up gauge
-              odaa_app_up 1
-              # HELP odaa_requests_total Total requests
-              # TYPE odaa_requests_total counter
-              odaa_requests_total {request_count}
-              # HELP odaa_uptime_seconds Application uptime
-              # TYPE odaa_uptime_seconds gauge
-              odaa_uptime_seconds {uptime}
-              ''', mimetype='text/plain')
-
-              if __name__ == '__main__':
-                  app.run(host='0.0.0.0', port=8080)
-              EOF
-              python /app/app.py
-          env:
-            - name: APP_VERSION
-              value: "v1.0.0"
-          resources:
-            requests:
-              cpu: "100m"
-              memory: "128Mi"
-            limits:
-              cpu: "500m"
-              memory: "256Mi"
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 60
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 45
-            periodSeconds: 5
+                  </div>
+              </body>
+              </html>
+              HTMLEOF
+          volumeMounts:
+            - name: html
+              mountPath: /html
+      volumes:
+        - name: html
+          emptyDir: {}
